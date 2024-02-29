@@ -8,11 +8,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "job_list.h"
 #define MAX_LINE_SIZE 80
 #define MAX_ARG 20
 typedef enum { FALSE , TRUE } bool;
-int BgCmd(char* lineSize, void* jobs);
-int ExeCmd(void* jobs, char* lineSize, char* cmdString);
+int BgCmd(char* lineSize);
+int ExeCmd(char* lineSize, char* cmdString);
 void ExeExternal(char *args[MAX_ARG], char* cmdString);
+int FilesDiff(char* name1, char* name2);
 #endif
-
