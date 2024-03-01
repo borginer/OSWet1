@@ -8,8 +8,11 @@ main file. This file contains the main function of smash
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+
 #include "commands.h"
 #include "signals.h"
+#include "job_list.h"
+
 #define MAX_LINE_SIZE 80
 #define MAXARGS 20
 
@@ -22,10 +25,20 @@ char lineSize[MAX_LINE_SIZE];
 //**************************************************************************************
 int main(int argc, char *argv[])
 {
-	//job** jobs = jobs_init();
-    char cmdString[MAX_LINE_SIZE]; 	   
+	jobs_init();
+    char cmdString[MAX_LINE_SIZE];
+
+	struct sigaction act;
+
+	act.sa_handler = &pause_handler;
+	sigaction(SIGTSTP, &act, NULL);
+
+	act.sa_handler = &kill_handler;
+	sigaction(SIGINT, &act, NULL);
 
 	
+	
+
 	//signal declaretions
 	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
 	 /* add your code here */
@@ -47,14 +60,15 @@ int main(int argc, char *argv[])
 			exit (-1); 
 	L_Fg_Cmd[0] = '\0';
 	
-    	while (1)
-    	{
+    while (1)
+    {
 	 	printf("smash > ");
+
 		fgets(lineSize, MAX_LINE_SIZE, stdin);
 		strcpy(cmdString, lineSize);    	
 		cmdString[strlen(lineSize)-1]='\0';
 					// background command	
-	 	if(!BgCmd(lineSize)) continue; 
+	 	//if(!BgCmd(lineSize)) continue; 
 					// built in commands
 		ExeCmd(lineSize, cmdString);
 		

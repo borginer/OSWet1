@@ -2,7 +2,10 @@
 //********************************************
 #include "commands.h"
 char *last_path, *tmp;
-#define PRINT_SYS_ERROR(name) perror("smash error: " #name " failed\n")
+// for signal handlers
+bool is_running = false;
+char* running_cmd;
+int running_pid;
 //********************************************
 // function name: ExeCmd
 // Description: interperts and executes built-in commands
@@ -11,12 +14,18 @@ char *last_path, *tmp;
 //**************************************************************************************
 int ExeCmd(char* lineSize, char* cmdString)
 {
+	sweep_zombies();
+	int bg = 0;
+	if (lineSize[strlen(lineSize)-2] == '&'){
+		lineSize[strlen(lineSize)-2] = '\0';
+		bg = 1;
+	}
 	char* cmd; 
 	char* args[MAX_ARG];
 	//char pwd[MAX_LINE_SIZE];
 	char* delimiters = " \t\n";  
 	int i = 0, num_arg = 0;
-	bool illegal_cmd = FALSE; // illegal command
+	bool illegal_cmd = false; // illegal command
     	cmd = strtok(lineSize, delimiters);
 	if (cmd == NULL)
 		return 0; 
@@ -26,7 +35,6 @@ int ExeCmd(char* lineSize, char* cmdString)
 		args[i] = strtok(NULL, delimiters); 
 		if (args[i] != NULL) 
 			num_arg++; 
- 
 	}
 /*************************************************/
 // Built in Commands PLEASE NOTE NOT ALL REQUIRED
@@ -35,7 +43,8 @@ int ExeCmd(char* lineSize, char* cmdString)
 /*************************************************/
 	if (!strcmp(cmd, "cd")) 
 	{
-		if(num_arg > 1){
+		jobs_add(1, getpid(), "cd");
+		if(num_arg != 1){
 			fprintf(stderr, "error: cd: too many arguments\n");
 		} 
 		else{
@@ -49,7 +58,7 @@ int ExeCmd(char* lineSize, char* cmdString)
 					fprintf(stderr, "smash error: cd: OLDPWD not set\n");
 			}
 			else
-				if(chdir(last_path)){PRINT_SYS_ERROR(chdir);}
+				if(chdir(args[1])){PRINT_SYS_ERROR(chdir);}
 			last_path = tmp;
 		}
 
@@ -64,7 +73,7 @@ int ExeCmd(char* lineSize, char* cmdString)
 	/*************************************************/
 	else if (!strcmp(cmd, "jobs")) 
 	{
- 		
+ 		jobs_print();
 	}
 	/*************************************************/
 	else if (!strcmp(cmd, "showpid")) 
@@ -74,28 +83,92 @@ int ExeCmd(char* lineSize, char* cmdString)
 	/*************************************************/
 	else if (!strcmp(cmd, "fg")) 
 	{
-		
+		int ret, job_id, stat;
+		int valid = 1;
+		char job_cmd[MAX_LINE_SIZE];
+		if(args[1] != NULL){
+			job_id = atoi(args[1]);
+			if(!job_id)
+				valid = 0;
+		}	
+		else
+			job_id = 0;
+		if(num_arg > 1 || !valid)
+			fprintf(stderr, "smash error: fg: invalid arguments\n");
+		else{
+			ret = fg_run(job_id, job_cmd);
+			switch(ret){
+				case no_jobs:
+					fprintf(stderr, "smash error: fg: jobs list is empty\n");
+					break;
+				case job_not_found:
+					fprintf(stderr, "smash error: fg: job-id %d does not exist\n", job_id);
+					break;
+				default: // bring to front
+					running_pid = ret;
+					running_cmd = job_cmd;
+					is_running = true;
+					waitpid(ret, &stat, 0);
+					is_running = false;
+					break;
+			}
+		}
 	} 
 	/*************************************************/
 	else if (!strcmp(cmd, "bg")) 
 	{
-  		
+  		int ret, job_id;
+		int valid = 1;
+		if(args[1] != NULL){
+			job_id = atoi(args[1]);
+			if(!job_id)
+				valid = 0;
+		}	
+		else
+			job_id = 0;
+		if(num_arg > 1 || !valid)
+			fprintf(stderr, "smash error: bg: invalid arguments\n");
+		else{
+			ret = bg_run(job_id);
+			switch(ret){
+				case no_stopped_jobs:
+					fprintf(stderr, "smash error: bg: there are no stopped jobs to resume\n");
+					break;
+				case wrong_type:
+					fprintf(stderr, "smash error: bg: job-id %d is already running in the background\n", job_id);
+					break;
+				case job_not_found:
+					fprintf(stderr, "smash error: bg: job-id %d does not exist\n", job_id);
+					break;
+				default:
+					break;
+			}
+		}
 	}
 	/*************************************************/
 	else if (!strcmp(cmd, "quit"))
 	{
-   		if(num_arg == 1 && strcmp(args[1], "kill")){
-			//ADD KILLING JOBS **********************************************ADD
-			exit(1);
-		}
-		else{
-			exit(0);
-		}
+   		if(num_arg == 1 && !strcmp(args[1], "kill"))
+			kill_jobs();
+		exit(0);
 	} 
 	/*************************************************/
-	else if (!strcmp(cmd, "kill"))
-	{
-   		
+	else if (!strcmp(cmd, "kill")){
+		int ret, job_id, sig_num;
+		job_id = atoi(args[2]);
+		sig_num = atoi(args[1]);
+		sig_num = (sig_num < 0) ? -sig_num : 0;
+   		if(num_arg != 2 || !job_id || !sig_num){
+			fprintf(stderr, "smash error: kill: invalid arguments\n");
+		}
+		else{
+			if((ret = sig_job(job_id, sig_num))){
+				if(ret == -1)
+					fprintf(stderr, "smash error: kill: job_id %d does not exist\n", job_id);
+				else
+					printf("signal number %d was sent to pid %d\n", sig_num, job_id);
+			}
+		}
 	} 
 	/*************************************************/	
 	else if (!strcmp(cmd, "diff"))
@@ -108,10 +181,12 @@ int ExeCmd(char* lineSize, char* cmdString)
 	/*************************************************/	
 	else // external command
 	{
- 		ExeExternal(args, cmdString);
+		//check if background
+		// printf("line: %s\n", cmdString);
+ 		ExeExternal(args, cmdString, bg);
 	 	return 0;
 	}
-	if (illegal_cmd == TRUE)
+	if (illegal_cmd == true)
 	{
 		printf("smash error: > \"%s\"\n", cmdString);
 		return 1;
@@ -124,33 +199,40 @@ int ExeCmd(char* lineSize, char* cmdString)
 // Parameters: external command arguments, external command string
 // Returns: void
 //**************************************************************************************
-void ExeExternal(char *args[MAX_ARG], char* cmdString)
+void ExeExternal(char *args[MAX_ARG], char* cmdString, int bg)
 {
-	int pID;
-    	switch(pID = fork()) 
+	int pid, ret;
+    switch(pid = fork()) 
 	{
-    		case -1: 
-					// Add your code here (error)
-					
-					/* 
-					your code
-					*/
-        	case 0 :
-                	// Child Process
-               		setpgrp();
-					
-			        // Add your code here (execute an external command)
-					
-					/* 
-					your code
-					*/
+    	case -1: 
+			PRINT_SYS_ERROR(fork);
+        case 0 :
+            // Child Process
+            setpgrp();
+
+			// int i = 0;
+			// while(args[i]){
+			// 	printf("%s \n", args[i]);
+			// 	i++;
+			// }
+			// printf("command string: %s\n", cmdString);
 			
-			default:
-                	// Add your code here
-					
-					/* 
-					your code
-					*/
+			execvp(args[0], args);
+			PRINT_SYS_ERROR(execvp);
+			return;
+		default:
+			if(!bg){ // wait if normal cmd
+				running_pid = pid;
+				running_cmd = cmdString;
+				is_running = true;
+				if(waitpid(pid, &ret, 0) == -1 && errno != EINTR){PRINT_SYS_ERROR(waitpid);}
+				is_running = false;
+			}
+			else{
+				jobs_add(background, pid, cmdString);
+			}
+
+			//printf("father returned\n");
 	}
 }
 //**************************************************************************************
@@ -159,27 +241,6 @@ void ExeExternal(char *args[MAX_ARG], char* cmdString)
 // Parameters: command string, pointer to jobs
 // Returns: 0- BG command -1- if not
 //**************************************************************************************
-int BgCmd(char* lineSize)
-{
-
-	//changed for warnings
-	// char* Command;
-	// char* delimiters = " \t\n";
-	// char *args[MAX_ARG];
-
-
-	if (lineSize[strlen(lineSize)-2] == '&')
-	{
-		lineSize[strlen(lineSize)-2] = '\0';
-		// Add your code here (execute a in the background)
-					
-		/* 
-		your code
-		*/
-		
-	}
-	return -1;
-}
 
 int FilesDiff(char* name1, char* name2){
 	FILE* f1 = fopen(name1, "r");
@@ -208,4 +269,16 @@ int FilesDiff(char* name1, char* name2){
 	if(line1){free(line1);}
 	if(line2){free(line2);}
 	return ans;
+}
+
+bool IsRunning(){
+	return is_running;
+}
+
+int RunningPID(){
+	return running_pid;
+}
+
+char* RunningCMD(){
+	return running_cmd;
 }

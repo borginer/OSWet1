@@ -7,8 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include "commands.h"
 
-
-
+void pause_handler();
+void kill_handler();
 #endif
 
