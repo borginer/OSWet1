@@ -1,23 +1,21 @@
 /*	smash.c
 main file. This file contains the main function of smash
 *******************************************************************/
+#define _POSIX_C_SOURCE 200809L
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h> 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-
 #include "commands.h"
 #include "signals.h"
 #include "job_list.h"
+#include <signal.h>
 
 #define MAX_LINE_SIZE 80
 #define MAXARGS 20
 
-char* L_Fg_Cmd;
-//void* jobs = NULL; //This represents the list of jobs. Please change to a preferred type (e.g array of char*)
 char lineSize[MAX_LINE_SIZE]; 
 //**************************************************************************************
 // function name: main
@@ -29,47 +27,21 @@ int main(int argc, char *argv[])
     char cmdString[MAX_LINE_SIZE];
 
 	struct sigaction act;
-
+	memset((void*)&act, 0, sizeof(act));
 	act.sa_handler = &pause_handler;
 	sigaction(SIGTSTP, &act, NULL);
 
 	act.sa_handler = &kill_handler;
 	sigaction(SIGINT, &act, NULL);
 
-	
-	
-
-	//signal declaretions
-	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
-	 /* add your code here */
-	
-	/************************************/
-	//NOTE: the signal handlers and the function/s that sets the handler should be found in siganls.c
-	//set your signal handlers here
-	/* add your code here */
-
-	/************************************/
-
-	/************************************/
-	// Init globals 
-
-
-	
-	L_Fg_Cmd =(char*)malloc(sizeof(char)*(MAX_LINE_SIZE+1));
-	if (L_Fg_Cmd == NULL) 
-			exit (-1); 
-	L_Fg_Cmd[0] = '\0';
-	
     while (1)
     {
 	 	printf("smash > ");
+		fflush(stdout);
 
 		fgets(lineSize, MAX_LINE_SIZE, stdin);
 		strcpy(cmdString, lineSize);    	
 		cmdString[strlen(lineSize)-1]='\0';
-					// background command	
-	 	//if(!BgCmd(lineSize)) continue; 
-					// built in commands
 		ExeCmd(lineSize, cmdString);
 		
 		/* initialize for next line read*/

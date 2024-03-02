@@ -8,7 +8,7 @@ jnode *head;
 bool jobs_init(){
     head = (jnode*)malloc(sizeof(jnode));
     if(!head)
-        return true;
+        return false;
     head->next = head;
     head->prev = head;
     head->job_id = 0;
@@ -28,7 +28,7 @@ bool jobs_init(){
     node->job_id = node->prev->job_id + 1;
     node->type = type;
     node->pid = pid;
-    node->cmd = (char*)malloc(MAX_LINE_SIZE);
+    node->cmd = (char*)malloc(strlen(cmd) + 1);
     if(!node->cmd){
         free(node);
         return false;
@@ -94,13 +94,17 @@ void sweep_zombies(){
     if(head == head->next)
         return;
     jnode* p = head;
-    int stat;
+    int stat, job_id;
     pid_t pid;
     while((p = p->next) != head){
         if((pid = waitpid(p->pid, &stat, WNOHANG)) == -1)
             PRINT_SYS_ERROR(waitpid);
-        if(pid)
-            jobs_remove(p->job_id);
+        if(pid){
+            job_id = p->job_id;
+            p = p->next;
+            jobs_remove(job_id);
+        }
+            
     }
 }
 
@@ -110,16 +114,18 @@ void kill_jobs(){
     jnode* p = head;
     int stat, count;
     pid_t pid;
-    while((p = p->next) != head){
+
+    p = p->next;
+    while(p != head){
         count = 0;
         printf("[%d] %s - Sending SIGTERM... ", p->job_id, p->cmd);
         fflush(stdout);
         if(kill(p->pid, SIGTERM))
             PRINT_SYS_ERROR(kill);
         for(; (pid = waitpid(p->pid, &stat, WNOHANG)) == 0 && count < 5; count++){
-            if(pid){PRINT_SYS_ERROR(waitpid);}
             sleep(1);
         }
+        if(pid == -1){PRINT_SYS_ERROR(waitpid);}
         if(count < 5){
             printf("Done.\n");
         }
@@ -131,7 +137,9 @@ void kill_jobs(){
             printf("Done.\n");
 
         }
-        jobs_remove(p->job_id);
+        int job_id = p->job_id;
+        p = p->next;
+        jobs_remove(job_id);
     }
 }
 

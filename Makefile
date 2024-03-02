@@ -1,6 +1,6 @@
 # Makefile for the smash program
 CC = gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -pedantic-errors -Werror -DNDEBUG -std=c99
 CCLINK = $(CC)
 OBJS = smash.o commands.o signals.o job_list.o
 RM = rm -f
@@ -15,5 +15,5 @@ job_list.o: job_list.c job_list.h
 
 # Cleaning old files before new make
 clean:
-	$(RM) $(TARGET) *.o *~ "#"* core.*
+	$(RM) $(TARGET) *.o *~ "#"* core.* smash
 

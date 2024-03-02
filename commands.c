@@ -43,7 +43,6 @@ int ExeCmd(char* lineSize, char* cmdString)
 /*************************************************/
 	if (!strcmp(cmd, "cd")) 
 	{
-		jobs_add(1, getpid(), "cd");
 		if(num_arg != 1){
 			fprintf(stderr, "error: cd: too many arguments\n");
 		} 
@@ -208,31 +207,26 @@ void ExeExternal(char *args[MAX_ARG], char* cmdString, int bg)
 			PRINT_SYS_ERROR(fork);
         case 0 :
             // Child Process
-            setpgrp();
+            setpgid(0, 0);
+			execv(args[0], args);
 
-			// int i = 0;
-			// while(args[i]){
-			// 	printf("%s \n", args[i]);
-			// 	i++;
-			// }
-			// printf("command string: %s\n", cmdString);
-			
-			execvp(args[0], args);
-			PRINT_SYS_ERROR(execvp);
-			return;
+			PRINT_SYS_ERROR(execv);
+			exit(-1);
 		default:
 			if(!bg){ // wait if normal cmd
 				running_pid = pid;
 				running_cmd = cmdString;
 				is_running = true;
-				if(waitpid(pid, &ret, 0) == -1 && errno != EINTR){PRINT_SYS_ERROR(waitpid);}
+				if(waitpid(pid, &ret, 0) == -1 && errno != EINTR){
+					PRINT_SYS_ERROR(waitpid);
+					printf("wtf?");
+				}		
 				is_running = false;
 			}
 			else{
-				jobs_add(background, pid, cmdString);
+				jobs_add(background, pid, cmdString);	
 			}
-
-			//printf("father returned\n");
+			return;
 	}
 }
 //**************************************************************************************

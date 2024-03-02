@@ -1,5 +1,6 @@
 #ifndef _JOB_ARR_H
 #define _JOB_ARR_H
+#define _POSIX_C_SOURCE 200809L
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h> 
@@ -10,6 +11,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
+
 #include "commands.h"
 
 
@@ -50,7 +52,7 @@ jnode* get_stopped_job();
 void jobs_print();
 void sweep_zombies();
 void kill_jobs();
-
+void jobs_delete();
 
 
 #endif
