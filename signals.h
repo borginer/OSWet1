@@ -14,5 +14,7 @@
 
 void pause_handler();
 void kill_handler();
+void set_pause_handler();
+void set_kill_handler();
 #endif
 

@@ -11,11 +11,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
-
 #include "commands.h"
 
-
 #define MAX_JOBS 100
+
+/* manages all the background processes (jobs)
+   including sending signals*/
 
 enum{
     stopped = 0,
@@ -44,15 +45,21 @@ typedef struct jnode{
 bool jobs_init();
 bool jobs_add(int type, int pid, char* cmd);
 bool jobs_remove(int job_id);
-int  bg_run(int job_id);
-int  fg_run(int job_id, char* cmd);
-int  sig_job(int job_id, int sig);
 jnode* get_job(int job_id);
-jnode* get_stopped_job();
-void jobs_print();
-void sweep_zombies();
-void kill_jobs();
-void jobs_delete();
 
+// gets a stopped job with highest job_id
+jnode* get_stopped_job();
+//implemets bg cmd
+int  bg_run(int job_id);
+//implements fg cmd, waitpid happenes in commands.c
+int  fg_run(int job_id, char* cmd);
+//implements kill cmd
+int  sig_job(int job_id, int sig);
+//implements jobs cmd
+void jobs_print();
+// remove all zombies from jobs, called at start of every command
+void sweep_zombies();
+//implements quit kill cmd
+void kill_jobs();
 
 #endif

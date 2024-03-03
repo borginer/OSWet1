@@ -180,8 +180,6 @@ int ExeCmd(char* lineSize, char* cmdString)
 	/*************************************************/	
 	else // external command
 	{
-		//check if background
-		// printf("line: %s\n", cmdString);
  		ExeExternal(args, cmdString, bg);
 	 	return 0;
 	}
@@ -217,10 +215,8 @@ void ExeExternal(char *args[MAX_ARG], char* cmdString, int bg)
 				running_pid = pid;
 				running_cmd = cmdString;
 				is_running = true;
-				if(waitpid(pid, &ret, 0) == -1 && errno != EINTR){
+				if(waitpid(pid, &ret, 0) == -1 && errno != EINTR)
 					PRINT_SYS_ERROR(waitpid);
-					printf("wtf?");
-				}		
 				is_running = false;
 			}
 			else{

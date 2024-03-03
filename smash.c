@@ -25,14 +25,8 @@ int main(int argc, char *argv[])
 {
 	jobs_init();
     char cmdString[MAX_LINE_SIZE];
-
-	struct sigaction act;
-	memset((void*)&act, 0, sizeof(act));
-	act.sa_handler = &pause_handler;
-	sigaction(SIGTSTP, &act, NULL);
-
-	act.sa_handler = &kill_handler;
-	sigaction(SIGINT, &act, NULL);
+	set_pause_handler();
+	set_kill_handler();
 
     while (1)
     {
